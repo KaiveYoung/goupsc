@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UPS 监控d</title>
+    <script src="./js/tailwindcss.js"></script>
+    <script src="./js/feather.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
+        <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">UPS监控</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-blue-100 p-4 rounded-lg">
+                <h2 class="text-xl font-semibold mb-3 text-blue-800">设备信息</h2>
+                <p><strong>型号:</strong> <span id="device-model"></span></p>
+                <p><strong>类型:</strong> <span id="ups-type"></span></p>
+            </div>
+            
+            <div class="bg-green-100 p-4 rounded-lg">
+                <h2 class="text-xl font-semibold mb-3 text-green-800">状态</h2>
+                <div id="status-indicator" class="flex items-center">
+                    <div class="w-3 h-3 rounded-full mr-2"></div>
+                    <span></span>
+                </div>
+                <p class="mt-2"><strong>输出电压:</strong> <span id="output-voltage"></span> V</p>
+            </div>
+            
+            <div class="bg-yellow-100 p-4 rounded-lg">
+                <h2 class="text-xl font-semibold mb-3 text-yellow-800">电池信息</h2>
+                <div class="flex items-center mb-2">
+                    <i data-feather="battery" class="mr-2"></i>
+                    <span><strong>电量:</strong> <span id="battery-charge"></span>%</span>
+                </div>
+                <div class="flex items-center">
+                    <i data-feather="clock" class="mr-2"></i>
+                    <span><strong>续航:</strong> <span id="battery-runtime"></span> 分钟</span>
+                </div>
+            </div>
+            
+            <div class="bg-red-100 p-4 rounded-lg">
+                <h2 class="text-xl font-semibold mb-3 text-red-800">负载</h2>
+                <div class="flex items-center mb-2">
+                    <i data-feather="battery" class="mr-2"></i>
+                    <span><strong>负载:</strong> <span id="ups-load"></span>%</span>
+                </div>
+                <div class="flex items-center">
+                    <i data-feather="clock" class="mr-2"></i>
+                    <span><strong>功率:</strong> <span id="ups-power"></span>W</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_ENDPOINT = '/api/upsinfo';
+        const REFRESH_INTERVAL = 30000; // 30 seconds
+        function fetchUPSData() {
+            fetch(API_ENDPOINT)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    updateUPSData(data);
+                })
+                .catch(error => {
+                    console.error('There was a problem fetching the UPS data:', error);
+                });
+        }
+
+        function updateUPSData(upsData) {
+            // 更新设备信息
+            updateElementText('device-model', findValue(upsData, "device.model"));
+            updateElementText('ups-type', findValue(upsData, "ups.type"));
+
+            // 更新状态
+            updateElementText('output-voltage', findValue(upsData, "output.voltage"));
+            updateStatus(findValue(upsData, "ups.status"));
+
+            // 更新电池信息
+            updateElementText('battery-charge', findValue(upsData, "battery.charge"));
+            const runtimeInSeconds = parseInt(findValue(upsData, "battery.runtime"));
+            updateElementText('battery-runtime', Math.floor(runtimeInSeconds / 60));
+
+            // 更新负载信息
+            updateElementText('ups-load', findValue(upsData, "ups.load"));
+            updateElementText('ups-power', findValue(upsData, "ups.realpower"));
+        }
+
+        function updateElementText(id, value) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+            }
+        }
+
+        function updateStatus(status) {
+            const statusIndicator = document.getElementById('status-indicator');
+            const statusDot = statusIndicator.querySelector('div');
+            const statusText = statusIndicator.querySelector('span');
+
+            if (status === "OL") {
+                statusDot.className = "w-3 h-3 rounded-full bg-green-500 mr-2";
+                statusText.textContent = "市电模式";
+            } else {
+                statusDot.className = "w-3 h-3 rounded-full bg-red-500 mr-2";
+                statusText.textContent = "电池模式";
+            }
+        }
+
+        function findValue(data, name) {
+            const item = data.find(item => item.name === name);
+            return item ? item.value : 'N/A';
+        }
+
+        // 初始加载数据
+        fetchUPSData();
+
+        // 设置定期刷新
+        setInterval(fetchUPSData, REFRESH_INTERVAL);
+    </script>
+</body>
+</html>
